@@ -1,0 +1,9 @@
+library(maptools)
+# voro.shp is from
+# https://github.com/vbonhomme/KappaV_files/blob/master/shp.zip
+x <- readShapeSpatial("~/Desktop/shp/voro.shp")
+
+# x@polygons[[1]]@Polygons[[1]]@coords
+# so we can
+coo <- lapply(x@polygons, function(.) .@Polygons[[1]]@coords)
+Out(coo) %>% panel
