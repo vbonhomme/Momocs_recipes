@@ -1,3 +1,17 @@
+# This script reads black silhouettes with landmarks as single red pixels
+
+# Dependencies =======
+library(Momocs)
+
+# Domestic functions ===========================================================
+
+# Imports one import_black_and_red
+# given a path to an RGB jpg with black and red pixels
+# returns a list with those components:
+# $grain:  outline of black mask
+# $ldk:    position of red pixels
+# $ldk_pos: ids of outline coordinates, that are the closest to ldk
+
 import_black_and_red1 <-
 function(path){
   # reads raw jpg
@@ -56,3 +70,35 @@ function(path){
   # we return this beauty
   list(out=black_out, ldk=ldk, ldk_pos=ldk_pos)
 }
+
+
+
+# A wrapper around import_black_and_red
+# two Outs that should be ready
+# if names is provided, it is passed to lf_structure
+import_black_and_red <- function(paths, names){
+  # creates lists that will store the results
+  gr <- gr_ldk <- emb <- emb_ldk <- vector("list", length(paths))
+  # loops over paths
+  for (i in seq_along(paths)){
+    cat("Importing ", paths[i] %>% .trim.path, "...")
+    # import single grains
+    gr.i <- import_black_and_red1(paths[i])
+    gr[[i]]      <- gr.i$out
+    gr_ldk[[i]]  <- gr.i$ldk_pos
+    cat("OK\n")
+  }
+  # we now have the coordinates and the ldks
+  # if names is provided, also extracts the $fac on the fly
+  if (!missing(names)){
+    fac <- paths %>% .trim.ext %>% .trim.path() %>%
+      lf_structure(names=names)
+  } else {
+    fac <- data.frame() # otherwise Out below wont be happy
+  }
+  # return these beauties
+  Out(gr, ldk=gr_ldk,  fac=fac)
+}
+
+# in action:
+# some_Out <- list.files(...) %>% import_black_and_red()
