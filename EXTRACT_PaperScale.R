@@ -1,8 +1,8 @@
-
+# VB
+# 8/1/18
 # Extract scale from an image with some graph paper on
 # (either) left/right side
 # Tuning points are detailed with `***` below
-# See https://github.com/vbonhomme/Momocs_recipes/blob/master/EXTRACT_PaperScale_example.jpg
 
 # Dependencies -----
 library(jpeg)
@@ -14,7 +14,7 @@ library(jpeg)
 # and distance between (blue) peaks are calculated. Then
 # return a median (of positive columns) of
 # medians (of distance between peaks for those columns)
-graph_paper <- function(path){
+graph_paper <- function(path, profile_columns=TRUE){
   peak_distances <- function(x){
     # given a vector (eg a column profile of image intensity)
     # return the distances between peaks
@@ -56,13 +56,17 @@ graph_paper <- function(path){
   # and take the complementary (just to have pos. peaks)
   # *** which channel to choose
   x <- (1- x[,, 3])
+  
+  # if we prefer to profile rows
+  if (!profile_columns)
+    x <- t(x)
 
   # find columns where to profile peaks ~~~~~
   # 5 in the left 1/5th ; same in the right 1/5th
   # *** number of columns to profile, per side
-  nb_per_side = 5
+  nb_per_side = 10
   # *** proportion on each side, where to profile columns
-  side_proportion = 0.20
+  side_proportion = 0.25
   cols_profiled <- c(#left side profiles
     round(seq(1,
             round(ncol(x)*side_proportion),
