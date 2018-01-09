@@ -1,8 +1,8 @@
-# VB
-# 8/1/18
+
 # Extract scale from an image with some graph paper on
 # (either) left/right side
 # Tuning points are detailed with `***` below
+# See https://github.com/vbonhomme/Momocs_recipes/blob/master/EXTRACT_PaperScale_example.jpg
 
 # Dependencies -----
 library(jpeg)
@@ -89,7 +89,10 @@ lf <- list.files("data/1431_cGatetN/1431_cGatetN_Initiale/",
                  full.names = TRUE, pattern="jpg$")
 
 # single file (very bad idea)
-graph_paper(lf[1])
+img <- download.file("https://raw.githubusercontent.com/vbonhomme/Momocs_recipes/master/EXTRACT_PaperScale_example.jpg",
+                      "img.jpg")
+graph_paper("img.jpg")
+file.remove("img.jpg")
 
 # on a list of files
 scale <- sapply(lf, graph_paper)
