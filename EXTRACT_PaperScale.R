@@ -2,109 +2,90 @@
 # 8/1/18
 # Extract scale from an image with some graph paper on
 # (either) left/right side
-# Tuning points are detailed with `***` below
 
 # Dependencies -----
 library(jpeg)
 
-# Given a jpg image, find on the third channel,
-# and on several column in both left/right edges
+# Given a jpg image, find on the right channel,
 # if graph paper gridlines can be found. Profiled columns
 # actually spanning graph paper are then slightly treated
 # and distance between (blue) peaks are calculated. Then
 # return a median (of positive columns) of
 # medians (of distance between peaks for those columns)
-graph_paper <- function(path, profile_columns=TRUE){
-  peak_distances <- function(x){
-    # given a vector (eg a column profile of image intensity)
-    # return the distances between peaks
-    # if real peaks, are found in a given column,
-    # ie if the graph paper spans this columns,
-    # then the CV (coefficient of variation) is expected to be very low
-    # below, we thus try different columns on the left/right sides
-    # then select those with a very low CV
+# Use debug mode to tune tuning points
+paper_scale <- function(path,
+                        quantile_white=0.95,
+                        quantile_peaks=0.75,
+                        smoothing_intensity=1/50,
+                        channel=3,
+                        debug=FALSE){
 
-    # remove 20% on each side to remove included scale bar
-    # and other artifacts
-    # *** proportion of a single vector to exclude on both ends
-    exclude_edges_proportion = 0.1
-    r <- round(length(x)*exclude_edges_proportion)
-    x <- x[r:((length(x)-r))]
-    # number of smoothing iterations ~~~~~
-    n <- round(length(x)/50)
-    # moving average and remove resulting NAs
-    x <- stats::filter(x, rep(1/n,n), sides=2)
-    x <- na.omit(x)
+  # import jpg and pick third channel
+  img <- jpeg::readJPEG(path)[,,channel]
 
-    # retain only the upper decile ~~~~~
-    # to avoid valleys noise
-    # *** how high to cut on each peak
-    x[x<quantile(x, probs=0.9)] <- NA
+  # normalize
+  img <- img-min(img)
+  img <- img/max(img)
 
-    # peak detection ~~~~~
-    #inflexion points
-    pos_inflexion_points <- diff(sign(diff(x))) == -2
-    # distances (in pixels) between peaks
-    diff(which(pos_inflexion_points))
+  # select only whitish columns (where graph paper is supposed to be)
+  mc <- apply(img, 2, mean)
+  x <- img[, which(mc > quantile(mc, probs=quantile_white))]
+
+
+  if (debug) {
+    cat("\n", path)
+    layout(matrix(1:4, nc=2))
+    Momocs::img_plot0(img)
+    Momocs::img_plot0(x)
   }
 
 
-  # read jpg ~~~~~
-  x <- readJPEG(path)
+  # from these columns, profile intensity on rows
+  x <- apply(x, 1, mean)
 
-  # retain only the third channel ~~~~~
-  # and take the complementary (just to have pos. peaks)
-  # *** which channel to choose
-  x <- (1- x[,, 3])
-  
-  # if we prefer to profile rows
-  if (!profile_columns)
-    x <- t(x)
+  if (debug) plot(x, type="l")
 
-  # find columns where to profile peaks ~~~~~
-  # 5 in the left 1/5th ; same in the right 1/5th
-  # *** number of columns to profile, per side
-  nb_per_side = 10
-  # *** proportion on each side, where to profile columns
-  side_proportion = 0.25
-  cols_profiled <- c(#left side profiles
-    round(seq(1,
-            round(ncol(x)*side_proportion),
-            length=nb_per_side)),
-    #right side profiles
-    round(seq(round(ncol(x)*(1-side_proportion)),
-              ncol(x),
-              length=nb_per_side)))
+  # smoothes with moving average
+  # and return a numeric with upwards peaks
+  n <- round(length(x) * smoothing_intensity)
+  xs <- stats::filter(x, rep(1/n,n), sides=2)
+  xs <- 1 - as.numeric(xs[!is.na(xs)])
+  # thresholdize peaks
+  xs <- as.numeric(xs>=quantile(xs, probs=quantile_peaks))
 
-  # calculate peak for chosen cols ~~~~~
-  ds <- apply(x[, cols_profiled], 2, peak_distances)
-  CVs <- 100*sapply(ds, function(.) sd(.)/mean(.))
-  #return(CVs)
-  # final filterting and peak distance calculation ~~~~~
-  # return for CVs below 2%
-  # the median of the medians
-  # *** CV tolerance
-  median(sapply(ds[which(CVs < 2)], median))
+  if (debug) plot(xs, type="l")
+
+  # diff between their starting points
+  d <- diff(which(diff(xs)==1))
+
+  # if found, pcik the median, NA otherwise
+  res <- ifelse(length(d)>0, median(d), NA)
+
+  if (debug){
+    layout(matrix(1))
+    cat("\n")
+    print(d)
+    cat("\n")
+    print(res)
+    cat(rep("*", 20))
+    Sys.sleep(2)
+  }
+  return(res)
 }
 
-# Example of use ------------
-# change this with your folder
-lf <- list.files("data/1431_cGatetN/1431_cGatetN_Initiale/",
-                 full.names = TRUE, pattern="jpg$")
-
-# single file (very bad idea)
+#### On a single image:
 img <- download.file("https://raw.githubusercontent.com/vbonhomme/Momocs_recipes/master/EXTRACT_PaperScale_example.jpg",
-                      "img.jpg")
-graph_paper("img.jpg")
+                     "img.jpg")
+paper_scale("img.jpg")
+paper_scale("img.jpg", debug=TRUE)
 file.remove("img.jpg")
 
-# on a list of files
-scale <- sapply(lf, graph_paper)
-# then
-data.frame(scale=scale, file=lf)
 
-# Benchmark --------
-# microbenchmark::microbenchmark(
-#     lapply(lf, graph_paper),
-#   times=5)
-## 10 images treated per sec.
+#### How to use it on a batch:
+lf <- list.files("data/0129-wMouBo5_Initiale/", # change this
+                 full=T,
+                 ignore.case=TRUE, pattern="jpg$") %>% sample
+
+lapply(lf, paper_scale, debug=T) # debug
+sapply(lf, paper_scale)          # prod
+
