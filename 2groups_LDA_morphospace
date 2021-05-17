@@ -1,0 +1,49 @@
+# How can I reconstruct shapes on a 2-group LDA
+# aka "why the f*** morphospace=TRUE doesn't work with only 2 groups
+# By request from J Bardin
+
+# This is a long story but, for now, you can at least obtain shapes with
+# this recipe.
+
+# load Momocs and calculate a dummy 2-groups LDA
+# ie with a single LD
+library(Momocs)
+x <- bot %>% efourier(6, norm=FALSE) %>% LDA(~type)
+
+morpho_LDA1 <- function(LDA, pos){
+  # if pos is missing (expected as 1 col matrix of positions along LD1)
+  # then use range along LD1
+  if (missing(pos))
+   pos <- matrix(range(LDA$mod.pred$x), ncol=1)
+  
+  # retrieve important information from LDA object
+rot <- LDA$LDs[,1, drop=FALSE]
+mshape <- LDA$mshape %>% matrix(ncol=1)
+
+# calculate coefficients, then back to shapes
+res <- vector("list", nrow(pos))
+for (i in seq_along(res)){
+  coe <- Momocs:::.mprod(rot, pos[i, ]) + mshape
+  xf <- coeff_split(coe)
+  res[[i]] <- efourier_i(xf, nb.pts = 360)
+}
+tibble::tibble(LD1=pos[, 1], shp=res)
+}
+
+# example:
+z <- x %>% morpho_LDA1() # (no 'pos' passed : range)
+z
+# you can reextract shapes with
+z$shp[[1]]
+
+# also, with a custom pos:
+
+r <- range(x$mod.pred$x)
+pos <- matrix(seq(r[1], r[2], length=10), ncol=1)
+z2 <- x %>% morpho_LDA1(pos)
+z2
+
+Out(z2$shp) %>% panel()
+
+
+
