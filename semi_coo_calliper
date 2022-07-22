@@ -1,0 +1,40 @@
+# inspired by C. Mureau's problem
+# the idea was to find a second landmark, as the farthest point from the first
+# that also happened to be the first point of the outline.
+
+library(tidyverse)
+library(Momocs)
+
+# using hearts for the sake of example
+hearts %>% slice(1) %>% stack()
+hearts %>% slice(1) %>% get_ldk() %>% `[[`(1) %>% text(labels=1:4)
+# let's say ldk "2" is tour apex ldk
+# we will erase all others
+hearts$ldk <- hearts$ldk %>% map(2)
+# and also define it as your first point
+hearts <- coo_slide(hearts, ldk=1) #ldk2 is now 1 (and only one)
+stack(hearts)
+
+# this little function will find the farthest point from your first point
+x <- hearts$coo[[1]]
+farthest_from_first <- function(x){
+  first <- x[1, drop=FALSE]
+  which.max(edm(first, x))
+}
+# id (ie row number is returned) eg:
+far_away <- hearts[1] %>% farthest_from_first()
+coo_plot(hearts[1])
+segments(hearts[1][1, 1], hearts[1][1, 2],
+         hearts[1][far_away, 1], hearts[1][far_away, 2])
+
+# let's find all ids
+far_away_ids <- hearts$coo %>% map_dbl(farthest_from_first)
+# now adding it as a second landmark is a piece of cake, eg
+hearts$ldk <- map2(hearts$ldk, far_away_ids, ~c(.x, .y))
+
+# let's check
+hearts %>% stack
+
+# now you can continue eg
+hearts %>% coo_bookstein(ldk1=1, ldk2=2) %>% efourier(6) %>% PCA %>% plot_PCA(~aut)
+
