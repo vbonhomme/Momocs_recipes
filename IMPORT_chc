@@ -1,0 +1,33 @@
+library(Momocs)
+library(tidyverse)
+
+# a chc looks like this:
+# "832_8_13 2845 1814 0.000000E+00 5414 5 4 4 4 5 4 ... -1"
+# we need to drop the first 5 elements and also the last one
+# this little helper will take care of that
+trim_chc <- function(x){
+  # explode on spaces and return a vector
+  x2 <- x %>% str_split(" ", simplify=TRUE)
+  # trim the first 5 elements and last
+  # and return as a numeric for chc2pix() to be happy
+  x3 <- x2[-c(1:5, length(x2))] %>% as.numeric()
+  x3[x3 %in% (0:7)]
+}
+
+# read the raw .chc file
+coos <- readLines("YOUR_PATH_HERE")
+
+# extract names from the .chc file
+# by grabbing only what's before the first space
+# in other words, by removing after the first space (the latter included)
+coo_name <- coos %>% str_remove(" .*")
+
+# run this on the coos list
+coo <- map(coos, ~.x %>% trim_chc %>% chc2pix)
+names(coo) <- coo_name
+
+# build a tibble from these two
+coo_df <- tibble(coo_name=coo_name, coo=coo)
+
+# then you can build an Out with eg:
+Out(coo_df$coo, df=coo_df %>% select(-coo_name)
