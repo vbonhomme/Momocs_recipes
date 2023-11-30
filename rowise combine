@@ -1,0 +1,11 @@
+# this row-wise combine has been forever missing in Momocs
+# the one in Momocs combines colwise (eg to combine views)
+# here we want to combine datasets !
+rcombine <- function(x, y){
+  z <- x # we need this for all decorations of OutCoe objects,
+  # eg $cuts, $method, etc.
+  z$coe <- rbind(x$coe, y$coe)
+  z$fac <- bind_rows(x$fac, y$fac)
+  # and return
+  z
+}
